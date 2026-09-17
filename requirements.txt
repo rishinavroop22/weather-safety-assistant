@@ -1,7 +1,8 @@
-# Policy layer + weather layer
+# Policy layer, weather layer, graph orchestration
 pydantic>=2.7,<3
 PyYAML>=6.0,<7
 httpx>=0.27,<1
+langgraph>=1.0,<2
 pytest>=8.0,<9
 
-# Later phases will add: langgraph, langchain (LLM provider), fastapi, uvicorn
+# Later phases will add: LLM provider SDK, fastapi, uvicorn

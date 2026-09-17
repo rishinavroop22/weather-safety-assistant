@@ -91,6 +91,8 @@ class ConcernInfo(TagInfo):
 class WeatherVariable(StrictModel):
     unit: str
     description: str = Field(min_length=1)
+    label: str | None = None
+    """Short user-facing name, e.g. 'wind gusts'."""
     aggregates: list[str]
     """Aggregates that are meaningful over a time window (subset of max/min/sum)."""
 
