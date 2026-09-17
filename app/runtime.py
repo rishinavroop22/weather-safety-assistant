@@ -12,15 +12,23 @@ from app.weather import OpenMeteoClient
 DEFAULT_POLICY_DIR = Path(__file__).resolve().parents[1] / "policy"
 
 
-def build_production_graph(policy_dir: Path | str = DEFAULT_POLICY_DIR, llm_config: LLMConfig | None = None) -> CompiledStateGraph:
+def build_production_graph(
+    policy_dir: Path | str = DEFAULT_POLICY_DIR,
+    llm_config: LLMConfig | None = None,
+    policy_store: PolicyStore | None = None,
+) -> CompiledStateGraph:
     """Wire the graph for real use.
+
+    Args:
+        policy_store: pass one to share it with the caller (e.g. the API, for display
+            formatting); otherwise one is created for ``policy_dir``.
 
     Raises:
         LLMConfigError: LLM environment variables are missing or invalid.
         PolicyError: the policy files are invalid (checked at startup, not on the first request).
     """
     config = llm_config or LLMConfig.from_env()
-    policy_store = PolicyStore(policy_dir)
+    policy_store = policy_store or PolicyStore(policy_dir)
     policy_store.get()
     client = ChatJSONClient(config)
     return build_graph(

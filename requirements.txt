@@ -1,9 +1,9 @@
-# Policy layer, weather layer, graph orchestration, LLM roles (OpenAI-compatible HTTP via httpx)
+# Policy layer, weather layer, graph orchestration, LLM roles (OpenAI-compatible HTTP via httpx), HTTP API
 pydantic>=2.7,<3
 PyYAML>=6.0,<7
 httpx>=0.27,<1
 langgraph>=1.0,<2
 python-dotenv>=1.0,<2
+fastapi>=0.115,<1
+uvicorn>=0.30,<1
 pytest>=8.0,<9
-
-# Later phases will add: fastapi, uvicorn

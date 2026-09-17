@@ -3,11 +3,34 @@
 A LangGraph chat bot that answers outdoor-activity safety questions using live
 Open-Meteo weather, and only gives advice that comes from written SOPs.
 
-> **Status: Phase 4 - real LLM integration.** Policy engine, Open-Meteo weather
-> layer, the 9-node graph, and real LLM intent extraction and answer wording
-> (any OpenAI-compatible API) are done. API and frontend come in later phases.
+> **Status: Phase 5 - web application.** Policy engine, Open-Meteo weather layer,
+> the 9-node LangGraph, real LLM intent extraction and answer wording, a FastAPI
+> backend and a React chat frontend are done.
+
+## Architecture
+
+```
+Browser (React chat UI)          displays answers and returned metadata only
+   │  POST /api/chat {message, session_id}
+   ▼
+FastAPI (app/api/)               validation, CORS, session id → graph thread id, response mapping
+   │  run_turn(graph, session_id, message)
+   ▼
+LangGraph (app/graph/)           9 nodes, in-memory checkpointer = conversation memory
+   ├─ LLM (app/llm/)             intent extraction + answer wording          (2 calls per answered turn)
+   ├─ Weather (app/weather/)     geocoding, forecast, time windows, facts    (deterministic)
+   ├─ Policy (app/policy/)       SOP matching, severity, ranking             (deterministic)
+   └─ verify / render / routing  verification, fallback answers, failures    (deterministic)
+```
+
+**The LLM does:** intent extraction and answer wording.
+**Deterministic code does:** weather retrieval, weather facts, SOP matching, severity,
+verification and failure routing. The frontend and the API layer make no weather or safety
+decisions; they transport the graph's answer and the metadata it already produced.
 
 ## Setup
+
+### Backend
 
 Requires Python 3.11+.
 
@@ -43,7 +66,135 @@ Copy `.env.example` to `.env` (git-ignored) and set:
 No provider, URL or model is hardcoded. Missing settings fail at startup with the variable
 names (never the values).
 
-## Run
+### Frontend
+
+Requires Node.js 20+.
+
+```bash
+cd frontend
+npm install
+```
+
+### Environment variables
+
+| Where | Variable | Default | Purpose |
+|---|---|---|---|
+| backend `.env` | `LLM_*` | (required) | LLM provider, see above; never sent to the browser |
+| backend `.env` | `FRONTEND_ORIGIN` | `http://localhost:5173` | comma-separated origins allowed by CORS; `*` is rejected |
+| backend `.env` | `FRONTEND_DIST` | `frontend/dist` if built | built frontend served by FastAPI at `/` |
+| `frontend/.env.local` | `VITE_API_BASE_URL` | empty (same origin) | set only to call the API on another origin, e.g. `http://localhost:8000` |
+| `frontend/.env.local` | `VITE_DEV_PROXY_TARGET` | `http://localhost:8000` | where the Vite dev server proxies `/api` and `/health` |
+
+`VITE_*` values are compiled into the browser bundle, so they must never contain keys.
+
+## Run locally
+
+**Development: two terminals.**
+
+```bash
+# 1. backend (from the project root, venv active)
+uvicorn app.main:app --reload --port 8000
+
+# 2. frontend (Vite dev server with hot reload, proxies /api to :8000)
+cd frontend
+npm run dev          # open http://localhost:5173
+```
+
+Because the dev server proxies `/api`, the browser talks to one origin and CORS is not involved.
+If you set `VITE_API_BASE_URL=http://localhost:8000` instead, keep `FRONTEND_ORIGIN=http://localhost:5173`.
+
+**Production-style: one process.**
+
+```bash
+cd frontend && npm run build && cd ..
+uvicorn app.main:app --host 0.0.0.0 --port 8000     # serves the API and the built UI at http://localhost:8000
+```
+
+If the LLM settings are missing the server still starts: `/health` answers and `/api/chat`
+returns `503 service_unavailable`, and the reason is logged (variable names only).
+
+## API
+
+| Method | Path | Purpose |
+|---|---|---|
+| `GET` | `/health` | liveness: `{"status": "ok"}` |
+| `POST` | `/api/chat` | one chat turn |
+| `GET` | `/docs` | interactive OpenAPI docs |
+
+**Request**
+
+```json
+{ "message": "Is it safe to cycle in Mysuru today?", "session_id": "optional, 8-64 of [A-Za-z0-9_-]" }
+```
+
+- `message`: required, not blank, at most 1000 characters. Longer messages are rejected, never truncated.
+- `session_id`: omit it to start a conversation; send back the returned id for follow-ups. It is the
+  LangGraph thread id, so memory is the graph's own checkpointer.
+
+**Response** (`200`, or `503` for service problems)
+
+```json
+{
+  "session_id": "6a6da1feb06c41cdab4e31513682c46f",
+  "answer": "…full answer text, including the weather block and policy citation…",
+  "answer_text": "…the same answer without the weather block and citation…",
+  "status": "answered",
+  "reason": null,
+  "location": "Mysuru, Karnataka, India",
+  "time_window": { "description": "this evening (17:00-21:00, Asia/Kolkata time)",
+                   "start": "2026-09-17T17:00", "end": "2026-09-17T21:00", "timezone": "Asia/Kolkata" },
+  "weather_summary": { "source": "Open-Meteo", "retrieved_at_utc": "2026-09-17T12:30:00+00:00",
+                       "values": [{ "label": "feels-like temperature (highest)", "value": "41.3°C" }],
+                       "unavailable": [] },
+  "policy": { "sop_ids": ["SOP-ACT-01"], "severity": "high",
+              "primary": { "id": "SOP-ACT-01", "title": "Dangerous heat for strenuous outdoor exercise", "severity": "high" },
+              "also_applies": [] }
+}
+```
+
+Location, time window, weather summary and policy are filled only for policy answers
+(`answered`, `answered_fallback`). Internal state such as prompts, drafts, raw Open-Meteo
+JSON, conversation history, verification details and traces is never returned.
+
+| `status` | `reason` examples | HTTP |
+|---|---|---|
+| `answered` | — | 200 |
+| `answered_fallback` | `verification_failed` | 200 |
+| `no_guidance` | `no_sop` | 200 |
+| `unsupported` | `unsupported_request` | 200 |
+| `clarification` | `location_missing`, `activity_missing`, `window_passed` | 200 |
+| `failure` | `invalid_intent`, `location_not_found` | 200 |
+| `failure` | `llm_unavailable`, `weather_error`, `location_error` | **503** (same body) |
+
+Errors that aren't chat turns use `{"error": {"code", "message", "fields"}}`:
+`422 invalid_request` (with per-field problems), `503 service_unavailable` (assistant not
+configured) and `500 internal_error`. No tracebacks or provider errors are returned.
+
+```bash
+curl -s http://localhost:8000/api/chat -H "Content-Type: application/json" \
+  -d '{"message": "Is it safe to cycle in Mysuru today?"}'
+```
+
+## Deployment considerations
+
+- **Single process.** Sessions live in LangGraph's in-memory checkpointer: run one worker
+  (`uvicorn` without `--workers`), and expect memory to reset on restart. Several workers or
+  instances would need a shared checkpointer (e.g. a LangGraph Postgres/Redis saver).
+- **Memory growth.** Sessions are never evicted, so restart periodically or add a persistent
+  checkpointer with expiry for long-running deployments.
+- **Same origin.** Serve the built frontend from FastAPI (`FRONTEND_DIST`) so no CORS is needed.
+  If the UI is hosted elsewhere, set `FRONTEND_ORIGIN` to its exact origin.
+- **Secrets.** Provide `LLM_*` as server environment variables or secrets, never in the frontend
+  build or the repo. `.env` is git-ignored.
+- **Latency and limits.** A turn makes up to two LLM calls plus Open-Meteo calls, so a few
+  seconds is normal. Put timeouts above `LLM_TIMEOUT_SECONDS × 2` on any reverse proxy.
+  Provider rate limits surface as `503 llm_unavailable`.
+- **No authentication and no rate limiting** are built in. Add them at the proxy/gateway before
+  exposing the API publicly.
+- **HTTPS** should be terminated by the hosting platform or a reverse proxy.
+- **Concurrent requests for the same session** aren't serialized; the UI sends one at a time.
+
+## Tests and evaluations
 
 ```bash
 python -m app.policy                   # validate policy/ and list the loaded SOPs

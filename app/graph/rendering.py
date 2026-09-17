@@ -18,6 +18,8 @@ UNITLESS = {"index", "WMO code", ""}
 TIGHT_UNITS = {"°C", "%"}
 PLACEHOLDER_PATTERN = re.compile(r"\{([^{}]+)\}")
 CONTEXT_PLACEHOLDERS = ("location", "window")
+WEATHER_SECTION_HEADER = "Weather data used ("
+"""Start of the weather block appended to every SOP answer; lets the API separate prose from the data block."""
 # {window} renders as a complete time phrase ("this evening (...)", "from now until 17:00 (...)"),
 # so a preposition written directly before it ("during {window}") is dropped when filling it in.
 PREPOSITION_BEFORE_WINDOW = re.compile(r"\b(during|for|in|at|on|over|from|until|by)\s+\{window\}", re.IGNORECASE)
@@ -143,7 +145,7 @@ def fill_placeholders(text: str, composition: CompositionRequest, vocabulary: Vo
 def weather_section(composition: CompositionRequest, facts: WeatherFacts, vocabulary: Vocabulary) -> str:
     window = facts.window
     period = f"{window.start:%Y-%m-%d} {_clock(window.start)}-{_clock(window.end + timedelta(hours=1))}, {facts.timezone} time"
-    lines = [f"Weather data used (Open-Meteo forecast for {composition.location_name}, {period}):"]
+    lines = [f"{WEATHER_SECTION_HEADER}Open-Meteo forecast for {composition.location_name}, {period}):"]
     lines += [f"- {fact_label(f, vocabulary)}: {format_fact_value(f, v, vocabulary)}" for f, v in composition.facts.items()]
     if composition.unavailable_facts:
         lines.append(f"- not available: {_join(fact_label(f, vocabulary) for f in composition.unavailable_facts)}")
