@@ -3,9 +3,9 @@
 A LangGraph chat bot that answers outdoor-activity safety questions using live
 Open-Meteo weather, and only gives advice that comes from written SOPs.
 
-> **Status: Phase 5 - web application.** Policy engine, Open-Meteo weather layer,
-> the 9-node LangGraph, real LLM intent extraction and answer wording, a FastAPI
-> backend and a React chat frontend are done.
+It is made of a deterministic policy engine, an Open-Meteo weather layer, a 9-node LangGraph,
+LLM intent extraction and answer wording (any OpenAI-compatible API), a FastAPI backend and a
+React chat frontend. Evaluation results are in [`evals/results.md`](evals/results.md).
 
 ## Architecture
 
@@ -203,21 +203,82 @@ python -m pytest tests/llm             # real-LLM evaluations (skipped without L
 python -m pytest                       # both; LLM tests show as skipped without credentials
 python -m evals.smoke_open_meteo       # live Open-Meteo check; saves a fixture
 python -m evals.smoke_llm              # end-to-end: real LLM + live weather; saves evals/results/llm_smoke_*.json
+python -m evals.severe_live_weather    # severe live-weather eval + fixture replay; saves evals/results/severe_live_weather_*.json
 ```
 
 Real-LLM tests fake the weather (so the correct SOP is known in advance) but use the real
 intent parser and composer. A new run writes what the model actually produced to
 `evals/results/llm_test_results.jsonl` (overwritten each run).
 
-Recorded evaluation artifacts (OpenRouter, `nex-agi/nex-n2.5-pro:free`, 2026-09-17):
+## Evaluation results
 
-- `evals/results/llm_test_results_openrouter.jsonl`: the real-LLM test run, 26/26 passed.
-- `evals/results/llm_smoke_20260917T131741Z.json`: smoke tests A–E with live weather. A was answered;
-  B and C asked for the missing location, then answered; D's first turn was answered. D's second turn hit the free daily quota at the composer and used
-  the deterministic fallback, and E was blocked by the same quota (`llm_unavailable`).
+The full report is [`evals/results.md`](evals/results.md). It maps every eval category the assignment
+requires (clear SOP matches, paraphrased intent, severe live weather, no-SOP, unreachable weather
+API, adversarial / prompt injection) to its cases, what each checks, the pass criterion, the actual
+result, the model and the run time, with honest notes.
 
-These were recorded before the fallback-wording, time-phrase and SOP-id rendering fixes, so their
-answer text shows the earlier wording.
+Latest recorded results (2026-09-17):
+
+| Suite | Result |
+|---|---|
+| Deterministic (`python -m pytest`, credentials disabled) | 412 passed, 26 skipped (the skips are the real-LLM tests) |
+| Real-LLM tests (OpenRouter `nex-agi/nex-n2.5-pro:free`, fake weather) | 26 passed, 0 failed: `evals/results/llm_test_results_openrouter.jsonl` |
+| Live smoke A–E (live weather, same model) | observed: A–D completed (D's last turn used the deterministic fallback after HTTP 429); **E not run** (HTTP 429): `evals/results/llm_smoke_20260917T131741Z.json` |
+| Severe live weather | **LIVE PASS** with stub LLM roles (Kolkata, thunderstorm → SOP-GEN-01; the real-LLM attempt hit HTTP 429) · **FIXTURE PASS** (recorded Bhopal response): `evals/results/severe_live_weather_20260917T162952Z.json` |
+
+The real-LLM test and smoke outputs were recorded before the final rendering fixes (guidance wording,
+time phrases, SOP id in text), so their answer text shows the earlier wording. To reproduce, run
+the commands above: the deterministic suite needs no key; the `tests/llm`, `smoke_llm` and
+`severe_live_weather` runs need `LLM_*` settings for the real-LLM parts.
+
+### Severe-weather evaluation
+
+The assignment asks for a severe case grounded in **real, current** API numbers. Live weather
+changes, so no test can honestly pass on every day. `evals/severe_live_weather.py` handles this
+explicitly:
+
+1. **Live scan.** A fixed list of cities is checked with the real Open-Meteo API, using the
+   production weather client, fact builder and policy engine. The first city whose forecast
+   triggers a **high or critical** SOP (preferring critical) is run through the full graph.
+2. **Grounding assertions.** On that request's own state: the SOP is high or critical and
+   reproducible from the facts, its id is in the answer and the policy line, every cited weather
+   value equals the value recomputed from that request's raw Open-Meteo hourly data and is shown
+   with its unit, and the answer text contains no number that isn't a weather value, SOP
+   threshold, window time or authored guidance number.
+3. **No severe weather anywhere → SKIPPED**, with the reason. A PASS is never manufactured.
+4. **Fixture replay.** A recorded real response (`evals/fixtures/open_meteo_bhopal_20260917.json`,
+   which contains thunderstorm codes) goes through the same graph and assertions. It proves the
+   grounding and verification path works on any day, but it is reported as **FIXTURE**, never as
+   a live result.
+5. **Language step.** If the real LLM is unavailable (e.g. quota), the live request is re-run with
+   the deterministic stub roles and labelled that way; with `--llm real` it is reported as NOT RUN.
+
+To make this sturdier over a whole season: record every qualifying live run as a new fixture
+(building a library of real severe events covering storms, rain systems, heat, fog and gusts), replay
+that library in CI, and keep the live scan as a separate, time-dependent check whose SKIPPED
+outcome is expected and visible.
+
+## Limitations
+
+- **Illustrative thresholds.** SOP thresholds and guidance are policy definitions written for this
+  take-home. They are not official medical, meteorological or government safety guidance.
+- **Open-Meteo forecasts only.** There is no IMD (or other official) alert integration. Situational
+  rules such as the rain-system SOP are forecast-based proxies.
+- **Geocoding** uses the first valid Open-Meteo result, so an ambiguous place name can resolve to the
+  wrong town. The resolved name, state and country are shown in the answer so this is visible.
+- **Forecast horizon** is today and tomorrow (`forecast_days=2`), in fixed windows (now, morning,
+  afternoon, evening, night, whole day). A window that has fully passed triggers a clarification.
+- **Session memory** is LangGraph's in-memory checkpointer: single process, lost on restart, no
+  eviction. It is not suitable for multi-instance deployment without a shared checkpointer.
+- **Verification** is deterministic and heuristic: citations, placeholders, field-aware numbers
+  (unit and label context) and banned phrases. It doesn't prove arbitrary semantic claims in the
+  wording, and it can reject a correct but unusually phrased number (safe failure: fallback answer).
+- **Real-LLM behaviour** depends on the provider's availability and quotas. Rate limits surface as
+  `llm_unavailable`, and some recorded evaluations were limited by a free-tier daily quota (see
+  `evals/results.md`).
+- **Severe live-weather evaluation** is time-dependent: its live part is SKIPPED on days without
+  qualifying severe forecasts in the scanned cities.
+- **No authentication or rate limiting** is built into the API.
 
 ## LLM roles (`app/llm/`)
 
@@ -237,7 +298,7 @@ matching, ranking, verification or rendering. Failure turns use zero or one call
 Implementation: `ChatJSONClient` makes one POST to `{LLM_BASE_URL}/chat/completions` with
 `temperature 0` and a strict JSON schema (`response_format`), with no retries (a retry would
 silently double cost and latency). `LLMIntentParser` and `LLMAnswerComposer` implement the
-Phase 3 `IntentParser` / `AnswerComposer` protocols, so the graph is unchanged;
+`IntentParser` / `AnswerComposer` protocols from `app/llm/interfaces.py`, so the graph doesn't depend on a provider;
 `app/runtime.py:build_production_graph()` wires them up.
 
 ### Context engineering: what each call sees
