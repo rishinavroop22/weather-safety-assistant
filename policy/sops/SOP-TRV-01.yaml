@@ -14,9 +14,9 @@ when:
       op: gte
       value: 4
 guidance:
-  - Heavy rain is forecast during the user's window; state the peak hourly rainfall.
+  - Heavy rain is forecast during this time.
   - Wet roads lengthen braking distance and hide potholes, so the skid risk on two wheels is high.
-  - Recommend a cab, public transport, or delaying the trip until the rain eases.
-  - If they must ride, slow down, keep extra distance and avoid waterlogged underpasses.
+  - Take a cab or public transport, or delay the trip until the rain eases.
+  - If you must ride, slow down, keep extra distance and avoid waterlogged underpasses.
 cite: [wx.max.precipitation, wx.max.precipitation_probability, wx.sum.precipitation]
 rationale: Riders on two wheels are the most exposed road users in heavy rain.

@@ -17,9 +17,9 @@ when:
       op: lt
       value: 40
 guidance:
-  - The feels-like temperature during the window is elevated for exercise; state the peak feels-like temperature.
-  - Recommend lowering the intensity or duration of the session.
+  - The feels-like temperature during this time is elevated for exercise.
+  - Lower the intensity or duration of the session.
   - Drink water regularly, roughly every 15 to 20 minutes, and choose a shaded route.
-  - Stop and rest somewhere cool if they start to feel unwell.
+  - Stop and rest somewhere cool if you start to feel unwell.
 cite: [wx.max.apparent_temperature, wx.max.temperature_2m]
 rationale: Warm conditions call for adjustment rather than cancellation; the upper bound hands over to SOP-ACT-01.

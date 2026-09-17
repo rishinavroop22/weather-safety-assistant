@@ -14,9 +14,9 @@ when:
       op: intersects
       value: [95, 96, 99]
 guidance:
-  - Lead with the thunderstorm - thunderstorm activity is forecast at the user's location during the time they asked about.
-  - Recommend postponing the outdoor plan to a time with no thunderstorm in the forecast.
-  - If thunder is heard while outside, move into a closed building or a hard-topped vehicle; do not shelter under isolated trees or stay on open ground, hilltops or water.
+  - Thunderstorm activity is forecast at your location during this time.
+  - Postpone the outdoor plan to a time with no thunderstorm in the forecast.
+  - If you hear thunder while outside, move into a closed building or a hard-topped vehicle; do not shelter under isolated trees or stay on open ground, hilltops or water.
   - Wait at least 30 minutes after the last thunder before going back outside.
 cite: [wx.max.precipitation_probability, wx.max.wind_gusts_10m]
 rationale: Lightning risk does not depend on the activity, so this applies to every outdoor question and outranks activity-level advice.

@@ -36,7 +36,7 @@ from app.graph.state import (
     VerificationResult,
 )
 from app.graph.verification import verify_draft
-from app.llm import AnswerComposer, ComposedAnswer, CompositionRequest, IntentParser, ParsedIntent
+from app.llm import AnswerComposer, ComposedAnswer, CompositionRequest, IntentParser, LLMError, ParsedIntent
 from app.policy import MatchResult, PolicySet, QueryProfile, SOPMatch, UnevaluableSOP, match_sops, required_weather_variables
 from app.weather import (
     Location,
@@ -106,6 +106,10 @@ class AdvisorNodes:
             parsed = validate_intent(raw, vocabulary)
         except IntentError as exc:
             return {**update, **_fail("invalid_intent", detail=str(exc))}
+        except LLMError as exc:
+            # Unusable model output is an invalid intent; a failed call is a service problem.
+            kind = "invalid_intent" if exc.kind in ("invalid_response", "empty_response") else "llm_unavailable"
+            return {**update, **_fail(kind, detail=f"intent LLM {exc.kind}: {exc.detail}")}
         except Exception as exc:  # the parser is an external model: never let it crash the turn
             logger.exception("Intent parser raised")
             return {**update, **_fail("invalid_intent", detail=f"parser raised {type(exc).__name__}")}
@@ -209,7 +213,8 @@ class AdvisorNodes:
             draft = ComposedAnswer.model_validate(data)
         except Exception as exc:
             logger.warning("Composer failed: %s", type(exc).__name__)
-            return {"composition": composition, "draft": None, "composer_error": f"{type(exc).__name__}: {str(exc)[:200]}"}
+            reason = f"LLM {exc.kind}: {exc.detail}" if isinstance(exc, LLMError) else f"{type(exc).__name__}: {exc}"
+            return {"composition": composition, "draft": None, "composer_error": reason[:300]}
         return {"composition": composition, "draft": draft}
 
     # 7 ---------------------------------------------------------------------

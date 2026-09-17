@@ -14,9 +14,9 @@ when:
       op: gte
       value: 40
 guidance:
-  - The feels-like temperature during the window is dangerously high for strenuous exercise; state the peak feels-like temperature.
-  - Advise against strenuous exercise during this window.
-  - Suggest moving the session indoors or to the coolest part of the day, and keeping it shorter.
-  - Tell the user to stop immediately and seek medical help if they feel dizzy, nauseous or confused, or stop sweating.
+  - The feels-like temperature during this time is dangerously high for strenuous exercise.
+  - Avoid strenuous exercise during this time.
+  - Move the session indoors or to the coolest part of the day, and keep it shorter.
+  - Stop immediately and seek medical help if you feel dizzy, nauseous or confused, or stop sweating.
 cite: [wx.max.apparent_temperature, wx.max.temperature_2m, wx.max.uv_index]
 rationale: Exertion adds body heat on top of environmental heat; at this feels-like level the risk is heat illness, not discomfort.

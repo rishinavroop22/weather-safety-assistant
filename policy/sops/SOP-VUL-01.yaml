@@ -14,8 +14,8 @@ when:
       op: gte
       value: 7
 guidance:
-  - High UV is forecast during the window; state the peak UV index.
-  - Keep children in the shade during the strongest-sun hours of the window.
+  - High UV is forecast during this time.
+  - Keep children in the shade during the strongest-sun hours.
   - Use hats, sunglasses, light long-sleeved clothing and broad-spectrum sunscreen of SPF 30 or higher, reapplied every 2 hours and after water play.
   - Keep babies under 6 months out of direct sunlight entirely, and offer children water often.
 cite: [wx.max.uv_index]

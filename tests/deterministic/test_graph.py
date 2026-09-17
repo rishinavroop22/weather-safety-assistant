@@ -377,8 +377,12 @@ def test_fabricated_weather_number_triggers_fallback():
     assert any(v.startswith("unsupported number 25 ") for v in state["verification"].violations)
     assert state["outcome"] == "answered_fallback"
     assert "25°C" not in state["final_answer"]
-    assert state["final_answer"].startswith("I couldn't reliably generate a policy-grounded response")
-    assert "Advise against strenuous exercise during this window." in state["final_answer"]
+    assert state["final_answer"].startswith(
+        "Mysuru, Karnataka, India, this evening (17:00-21:00, Asia/Kolkata time): "
+        "Dangerous heat for strenuous outdoor exercise (SOP-ACT-01, high severity)."
+    )
+    assert "- Avoid strenuous exercise during this time." in state["final_answer"]
+    assert "Why this applies: feels-like temperature (highest) 41.3°C, at or above 40°C." in state["final_answer"]
     assert "feels-like temperature (highest): 41.3°C" in state["final_answer"]
 
 

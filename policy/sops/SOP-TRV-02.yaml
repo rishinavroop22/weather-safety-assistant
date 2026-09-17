@@ -14,8 +14,8 @@ when:
       op: lt
       value: 200
 guidance:
-  - Dense fog is forecast during the window; state the lowest visibility in metres.
-  - Recommend delaying the journey until visibility improves.
+  - Dense fog is forecast during this time.
+  - Delay the journey until visibility improves.
   - If the trip cannot wait, use low-beam headlights or fog lamps (not high beams), drive slower, keep a much larger following distance and do not overtake.
   - Riders and cyclists should wear bright or reflective clothing and use lights.
 cite: [wx.min.visibility]

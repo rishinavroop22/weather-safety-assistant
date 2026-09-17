@@ -14,9 +14,9 @@ when:
       op: gte
       value: 45
 guidance:
-  - Strong wind gusts are forecast during the window; state the peak gust speed.
+  - Strong wind gusts are forecast during this time.
   - On exposed trails, ridges and cliff edges, gusts can knock people off balance and bring down branches; choose a sheltered route or postpone.
-  - For kayaking, boating or open-water swimming, recommend postponing, because gusts make capsizing and being pushed away from shore more likely.
-  - If going ahead with a land activity, tell someone the route and the expected return time.
+  - Postpone kayaking, boating or open-water swimming, because gusts make capsizing and being pushed away from shore more likely.
+  - If you go ahead with a land activity, tell someone your route and your expected return time.
 cite: [wx.max.wind_gusts_10m, wx.max.wind_speed_10m]
 rationale: Gust hazards depend on exposure; the same wind is a nuisance in a city park but dangerous on a ridge or on water.

@@ -14,9 +14,9 @@ when:
       op: gte
       value: 35
 guidance:
-  - The feels-like temperature during the window is high for older adults; state the peak feels-like temperature.
-  - Recommend avoiding going out during this window and choosing a cooler time of day instead.
-  - If they do go out, keep it short and shaded, go with someone, carry water and wear light, loose clothing.
+  - The feels-like temperature during this time is high for older adults.
+  - Avoid going out during this time and choose a cooler time of day instead.
+  - If going out, keep it short and shaded, go with someone, carry water and wear light, loose clothing.
   - Warning signs of heat illness include dizziness, confusion, fainting, and heavy sweating or hot dry skin; move to a cool place and seek medical help if these appear.
 cite: [wx.max.apparent_temperature, wx.max.temperature_2m]
 rationale: Older adults regulate body temperature less effectively and may not feel thirst, so the threshold is lower than for exercise.

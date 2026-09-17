@@ -79,14 +79,15 @@ def intent(kind: str = "activity_safety", **fields: Any) -> dict[str, Any]:
 
 
 def make_graph(
-    script: Mapping[str, Any],
+    script: Mapping[str, Any] | None = None,
     *,
     weather: FakeWeather | None = None,
     composer: Any = None,
+    parser: Any = None,
     policy_dir: Path = POLICY_DIR,
 ):
-    """A compiled graph with the real policy engine and injected fakes."""
-    parser = ScriptedIntentParser(script)
+    """A compiled graph with the real policy engine and injected fakes (or real LLM roles)."""
+    parser = parser or ScriptedIntentParser(script or {})
     weather = weather or FakeWeather()
     composer = composer or TemplateAnswerComposer()
     graph = build_graph(

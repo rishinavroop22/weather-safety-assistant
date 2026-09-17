@@ -17,7 +17,7 @@ from app.weather import (
 )
 from tests.weather_helpers import CALM_HOURLY, make_forecast_payload, make_location
 
-FIXTURES_DIR = Path(__file__).resolve().parents[1] / "evals" / "fixtures"
+FIXTURES_DIR = Path(__file__).resolve().parents[2] / "evals" / "fixtures"
 
 
 def forecast_from(payload, variables=None):

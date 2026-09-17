@@ -15,9 +15,9 @@ when:
       op: not_intersects
       value: [air_quality, pollen, other_unsupported]
 guidance:
-  - State the conditions that were checked for the user's location and time window, with their values.
-  - Say that none of our policy risk thresholds were crossed for this activity in that window.
-  - Do not describe the activity as safe or risk-free; conditions can change, so recommend checking again closer to the time.
+  - None of our policy risk thresholds were crossed for this activity during this time, based on the conditions checked.
+  - This does not mean the activity is safe or risk-free.
+  - Conditions can change, so check again closer to the time.
 cite:
   - wx.max.apparent_temperature
   - wx.max.precipitation_probability

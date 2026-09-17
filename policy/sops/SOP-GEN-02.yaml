@@ -21,9 +21,9 @@ when:
           op: gte
           value: 40
 guidance:
-  - Lead with the weather situation - significant rain is forecast for the user's window; state the total rainfall and the strongest gusts.
-  - Explain that this can cause waterlogged streets, falling branches and poor road conditions, affecting any outdoor plan.
-  - Recommend postponing non-essential outdoor plans until the rain has passed.
+  - Significant rain is forecast during this time, and it may come with strong gusts.
+  - This can cause waterlogged streets, falling branches and poor road conditions, affecting any outdoor plan.
+  - Postpone non-essential outdoor plans until the rain has passed.
   - If going out cannot be avoided, avoid low-lying roads, underpasses and standing water, and keep away from trees and hoardings when it is gusty.
 cite: [wx.sum.precipitation, wx.max.wind_gusts_10m, wx.max.precipitation_probability]
 rationale: A rain system creates situational risk across every activity. The compound branch catches moderate rain plus moderate gusts that neither threshold flags alone. Open-Meteo has no official IMD warnings, so this is a forecast-based proxy.

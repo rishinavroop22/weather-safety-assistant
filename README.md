@@ -3,10 +3,9 @@
 A LangGraph chat bot that answers outdoor-activity safety questions using live
 Open-Meteo weather, and only gives advice that comes from written SOPs.
 
-> **Status: Phase 3 - LangGraph orchestration.** Policy engine, Open-Meteo
-> weather layer and the 9-node graph (with session memory and answer
-> verification) are done and tested. The two LLM roles are still deterministic
-> stubs; the real LLM, API and frontend come in later phases.
+> **Status: Phase 4 - real LLM integration.** Policy engine, Open-Meteo weather
+> layer, the 9-node graph, and real LLM intent extraction and answer wording
+> (any OpenAI-compatible API) are done. API and frontend come in later phases.
 
 ## Setup
 
@@ -28,15 +27,114 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-Copy `.env.example` to `.env` when later phases need an LLM key. `.env` is git-ignored.
+### Configure the LLM
+
+Copy `.env.example` to `.env` (git-ignored) and set:
+
+| Variable | Meaning |
+|---|---|
+| `LLM_API_KEY` | provider key (any non-empty value for local servers such as Ollama) |
+| `LLM_BASE_URL` | OpenAI-compatible base URL, the part before `/chat/completions` |
+| `LLM_MODEL` | model id at that provider |
+| `LLM_TIMEOUT_SECONDS` | optional, default 30 |
+| `LLM_RESPONSE_FORMAT` | optional: `json_schema` (default, provider-enforced schema) or `json_object` for providers without JSON-schema support |
+| `LLM_REASONING_EFFORT` | optional, sent as `reasoning_effort` only when set. For reasoning models (e.g. Gemini via its OpenAI-compatible endpoint) use `none`: otherwise hidden thinking can consume the whole output budget and the reply comes back empty/truncated |
+
+No provider, URL or model is hardcoded. Missing settings fail at startup with the variable
+names (never the values).
 
 ## Run
 
 ```bash
-python -m app.policy               # validate policy/ and list the loaded SOPs
-python -m pytest                   # run the unit tests (no network needed)
-python -m evals.smoke_open_meteo   # optional live Open-Meteo check; saves a fixture
+python -m app.policy                   # validate policy/ and list the loaded SOPs
+python -m pytest tests/deterministic   # deterministic suite: no network, no LLM key
+python -m pytest tests/llm             # real-LLM evaluations (skipped without LLM_* settings)
+python -m pytest                       # both; LLM tests show as skipped without credentials
+python -m evals.smoke_open_meteo       # live Open-Meteo check; saves a fixture
+python -m evals.smoke_llm              # end-to-end: real LLM + live weather; saves evals/results/llm_smoke_*.json
 ```
+
+Real-LLM tests fake the weather (so the correct SOP is known in advance) but use the real
+intent parser and composer. A new run writes what the model actually produced to
+`evals/results/llm_test_results.jsonl` (overwritten each run).
+
+Recorded evaluation artifacts (OpenRouter, `nex-agi/nex-n2.5-pro:free`, 2026-09-17):
+
+- `evals/results/llm_test_results_openrouter.jsonl`: the real-LLM test run, 26/26 passed.
+- `evals/results/llm_smoke_20260917T131741Z.json`: smoke tests A–E with live weather. A was answered;
+  B and C asked for the missing location, then answered; D's first turn was answered. D's second turn hit the free daily quota at the composer and used
+  the deterministic fallback, and E was blocked by the same quota (`llm_unavailable`).
+
+These were recorded before the fallback-wording, time-phrase and SOP-id rendering fixes, so their
+answer text shows the earlier wording.
+
+## LLM roles (`app/llm/`)
+
+Exactly **two LLM calls per answered turn**, each narrow and replaceable:
+
+| Call | Node | Input | Output | Cannot express |
+|---|---|---|---|---|
+| intent extraction | `understand_query` | task rules, controlled vocabulary, one-line session context, current message (JSON-escaped) | `ParsedIntent`: intent type, activity/group/concern tags, location text, day, part of day | SOPs, severity, safety verdicts, weather values, thresholds |
+| answer wording | `compose_answer` | task rules, selected SOP id/title/severity/guidance/evidence, secondary SOPs, weather placeholders + labels + values, unavailable values | `ComposedAnswer`: text + cited SOP ids | anything that isn't verified afterwards |
+
+Why two calls and not one: understanding the question must happen before weather and SOPs are
+known, and wording must happen after the deterministic code has decided. A single call would
+have to see both the raw user text and the policy result, which is exactly the coupling that
+lets an injected instruction change the answer. No LLM call is used for weather parsing, SOP
+matching, ranking, verification or rendering. Failure turns use zero or one call.
+
+Implementation: `ChatJSONClient` makes one POST to `{LLM_BASE_URL}/chat/completions` with
+`temperature 0` and a strict JSON schema (`response_format`), with no retries (a retry would
+silently double cost and latency). `LLMIntentParser` and `LLMAnswerComposer` implement the
+Phase 3 `IntentParser` / `AnswerComposer` protocols, so the graph is unchanged;
+`app/runtime.py:build_production_graph()` wires them up.
+
+### Context engineering: what each call sees
+
+**Intent parser.** It gets the vocabulary tags with descriptions and examples, which is how
+paraphrases ("take my scooty to office") map to tags without keyword matching, and the schema
+enforces those tags as enums. It also gets a one-line summary of session state
+(`activities: cycling; location: Mysuru, …; day: today; part_of_day: whole_day`) and **not**
+the transcript: structured state is all it needs to recognise a follow-up, and a transcript
+would add tokens plus earlier model text it might copy. It is told to return only what the
+*current* message says. The deterministic merge (`build_request`) inherits the rest, so
+inheritance rules live in code, not in the prompt. The message is JSON-escaped, so it cannot
+fake extra prompt lines. No SOPs or weather are included: they aren't needed to understand a
+question, and leaving them out keeps the parser from reasoning about policy.
+
+**Composer.** It gets the selected SOP's guidance and evidence, the secondary SOPs, each
+reportable weather value as a `{placeholder}` with its label and value, and `{location}` /
+`{window}`. It does **not** get:
+
+- *The raw user message.* Injected instructions have no path to the model that writes the
+  answer. The request is described structurally (activities, groups).
+- *Raw Open-Meteo JSON.* The composer only needs the few values the SOP cites. The full
+  payload is hundreds of numbers it could misread or quote.
+- *SOP conditions or the other SOPs.* Selection is already done. Showing conditions invites
+  the model to re-evaluate them or invent thresholds.
+- *Hidden state and IDs,* such as the policy store, session id or trace.
+
+### What the LLM is forbidden from deciding (and where that is enforced)
+
+| Decision | Enforced by |
+|---|---|
+| which SOP applies, severity, ranking | `match_sops` (deterministic); the parser schema has no such fields |
+| thresholds | SOP YAML only; verifier rejects numbers that aren't facts/thresholds in a weather context |
+| weather values | Open-Meteo facts in state; placeholders are filled by `render_answer`; verifier checks literal numbers field by field |
+| whether an unrecognised request gets advice | `match_sops` returns `no_sop`; the parser can only flag *off-topic* |
+| final wording of the policy citation and weather block | `rendering.py`, from state |
+
+### LLM failure behaviour
+
+| Failure | Where | Result |
+|---|---|---|
+| timeout, network error, 429, 5xx/4xx, model unavailable | intent call | `llm_unavailable`, "I'm unable to process requests right now…", no weather lookup |
+| empty content, non-JSON, truncated, refusal, schema/tag violation | intent call | `invalid_intent`, ask to rephrase |
+| any error or unusable output | composer call | `verification_failed` → deterministic fallback answer (SOP title/id/severity, the SOP's guidance, "why this applies" from the engine's evidence, weather values, citation), **no second LLM call** |
+| draft with fabricated number / wrong SOP / invented threshold / banned phrase | verifier | same deterministic fallback |
+
+Errors are logged with a `kind` and a scrubbed detail; the API key never appears in logs,
+errors or `repr`.
 
 ## Graph (`app/graph/`)
 
@@ -62,7 +160,7 @@ START
 [6] compose_answer                                                             │
   │   LLM role #2 ← CompositionRequest (no raw message, no raw weather)       │
   ▼                                                                            │
-[7] verify_answer ───── any violation → authored guidance verbatim ───────────┤
+[7] verify_answer ───── any violation → deterministic fallback answer ─────────┤
   │   checks SOP ids, placeholders, field-aware numbers, banned phrases       │
   ▼                                                                            │
 [8] render_answer                                                              │
@@ -97,6 +195,7 @@ sends the turn straight to `update_memory`.
 | `failure.kind` | Raised at | `outcome` | User sees |
 |---|---|---|---|
 | `invalid_intent` | 1 | failure | ask to rephrase |
+| `llm_unavailable` | 1 | failure | "I'm unable to process requests right now…" |
 | `activity_missing` | 1 | clarification | ask for activity and place |
 | `unsupported_request` (off topic) | 1 | unsupported | "I can only help with weather-related safety questions…" |
 | `location_missing` | 2 | clarification | ask for a city |
@@ -104,7 +203,7 @@ sends the turn straight to `update_memory`.
 | `weather_error` | 3, 4 | failure | couldn't retrieve weather data |
 | `window_passed` | 4 | clarification | window passed, with local time |
 | `no_sop` | 5 | no_guidance | "I don't currently have guidance…" (+ unsupported concern / unavailable data) |
-| `verification_failed` | 7 | answered_fallback | notice + SOP guidance verbatim + weather + citation |
+| `verification_failed` | 7 | answered_fallback | answer built from state: SOP title/id/severity, its guidance, why it applies, weather values, citation |
 
 The two "no answer" cases are deliberately different: `unsupported_request` is a topic check made
 before any lookup (the question isn't about weather/outdoor activity), while `no_sop` can only come from
@@ -171,12 +270,15 @@ missing field is inherited; without an explicit location the session's location 
 ### Dependency injection
 
 ```python
+policy_store = PolicyStore("policy")                 # read every turn: SOP edits apply live
+client = ChatJSONClient(LLMConfig.from_env())
 graph = build_graph(
-    policy_store=PolicyStore("policy"),          # read every turn: SOP edits apply live
-    weather_provider=OpenMeteoClient(),          # or FixtureWeatherProvider / a fake
-    intent_parser=ScriptedIntentParser({...}),   # Phase 4: real LLM
-    answer_composer=TemplateAnswerComposer(),    # Phase 4: real LLM
+    policy_store=policy_store,
+    weather_provider=OpenMeteoClient(),              # tests: FixtureWeatherProvider / FakeWeather
+    intent_parser=LLMIntentParser(client, lambda: policy_store.get().vocabulary),   # tests: ScriptedIntentParser
+    answer_composer=LLMAnswerComposer(client),       # tests: TemplateAnswerComposer
 )
+# or simply: graph = build_production_graph()
 state = run_turn(graph, session_id="abc", message="Is it safe to cycle in Mysuru this evening?")
 state["final_answer"], state["match_result"].primary, state["verification"], state["trace"]
 ```
@@ -222,7 +324,7 @@ diffs are clean, it's validated strictly by Pydantic on load, and adding a rule 
 | `applies_to.groups` | any-of, optional extra requirement (children, elderly, pets) |
 | `fallback` | `true` = only considered when nothing else matched and nothing was unknown |
 | `when` | condition tree (below) |
-| `guidance` | the authored advice; the only advice the bot may give for this SOP |
+| `guidance` | the authored advice, written to the user (e.g. "Avoid strenuous exercise during this time."); the only advice the bot may give for this SOP, shown as-is in the fallback answer |
 | `cite` | numeric facts whose values the answer must show |
 | `rationale` | why the rule exists (for reviewers) |
 

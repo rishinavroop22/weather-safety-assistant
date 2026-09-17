@@ -18,7 +18,8 @@ from app.policy import MatchResult
 from app.weather import Day, Location, PartOfDay, RawForecast, WeatherFacts
 
 FailureKind = Literal[
-    "invalid_intent",       # parser output malformed / unknown tags / parser crashed
+    "invalid_intent",       # parser output malformed / unknown tags / not valid JSON / parser crashed
+    "llm_unavailable",      # intent LLM call failed (timeout, rate limit, HTTP error, model unavailable)
     "unsupported_request",  # off topic: not a weather/outdoor-activity question (rejected early)
     "activity_missing",     # a follow-up with no earlier activity to build on
     "location_missing",     # no location in the message or the session
@@ -34,6 +35,7 @@ Outcome = Literal["answered", "answered_fallback", "no_guidance", "unsupported",
 
 OUTCOME_BY_FAILURE: dict[str, Outcome] = {
     "invalid_intent": "failure",
+    "llm_unavailable": "failure",
     "unsupported_request": "unsupported",
     "activity_missing": "clarification",
     "location_missing": "clarification",
