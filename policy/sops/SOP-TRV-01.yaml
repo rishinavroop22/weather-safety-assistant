@@ -1,0 +1,22 @@
+id: SOP-TRV-01
+version: 1
+title: Two-wheeler or bicycle on rain-slicked roads
+category: travel
+severity: high
+scope: activity
+applies_to:
+  activities: [two_wheeler_ride, cycling]
+  groups: []
+fallback: false
+when:
+  all:
+    - fact: wx.max.precipitation
+      op: gte
+      value: 4
+guidance:
+  - Heavy rain is forecast during the user's window; state the peak hourly rainfall.
+  - Wet roads lengthen braking distance and hide potholes, so the skid risk on two wheels is high.
+  - Recommend a cab, public transport, or delaying the trip until the rain eases.
+  - If they must ride, slow down, keep extra distance and avoid waterlogged underpasses.
+cite: [wx.max.precipitation, wx.max.precipitation_probability, wx.sum.precipitation]
+rationale: Riders on two wheels are the most exposed road users in heavy rain.

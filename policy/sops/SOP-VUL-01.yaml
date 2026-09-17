@@ -1,0 +1,22 @@
+id: SOP-VUL-01
+version: 1
+title: Children outdoors with high UV
+category: vulnerable_groups
+severity: moderate
+scope: global
+applies_to:
+  activities: [any_outdoor]
+  groups: [children]
+fallback: false
+when:
+  all:
+    - fact: wx.max.uv_index
+      op: gte
+      value: 7
+guidance:
+  - High UV is forecast during the window; state the peak UV index.
+  - Keep children in the shade during the strongest-sun hours of the window.
+  - Use hats, sunglasses, light long-sleeved clothing and broad-spectrum sunscreen of SPF 30 or higher, reapplied every 2 hours and after water play.
+  - Keep babies under 6 months out of direct sunlight entirely, and offer children water often.
+cite: [wx.max.uv_index]
+rationale: Children's skin burns faster and they rarely self-limit sun exposure.

@@ -1,0 +1,22 @@
+id: SOP-TRV-02
+version: 1
+title: Dense fog on the road
+category: travel
+severity: high
+scope: activity
+applies_to:
+  activities: [driving, two_wheeler_ride, cycling]
+  groups: []
+fallback: false
+when:
+  all:
+    - fact: wx.min.visibility
+      op: lt
+      value: 200
+guidance:
+  - Dense fog is forecast during the window; state the lowest visibility in metres.
+  - Recommend delaying the journey until visibility improves.
+  - If the trip cannot wait, use low-beam headlights or fog lamps (not high beams), drive slower, keep a much larger following distance and do not overtake.
+  - Riders and cyclists should wear bright or reflective clothing and use lights.
+cite: [wx.min.visibility]
+rationale: Collision risk in dense fog comes from reduced reaction distance, which affects every road user.

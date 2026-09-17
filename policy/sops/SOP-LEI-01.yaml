@@ -1,0 +1,43 @@
+id: SOP-LEI-01
+version: 1
+title: Outdoor gathering comfort check
+category: leisure
+severity: low
+scope: activity
+applies_to:
+  activities: [picnic_outing, outdoor_event]
+  groups: []
+fallback: false
+# Fuzzy scenario: no single threshold makes a picnic "bad".
+# Two or more mild discomfort factors together make it "not ideal".
+when:
+  at_least:
+    n: 2
+    of:
+      - fact: wx.max.precipitation_probability
+        op: gte
+        value: 40
+      - fact: wx.max.apparent_temperature
+        op: gte
+        value: 34
+      - fact: wx.max.wind_speed_10m
+        op: gte
+        value: 25
+      - fact: wx.max.uv_index
+        op: gte
+        value: 8
+      - fact: wx.max.relative_humidity_2m
+        op: gte
+        value: 85
+guidance:
+  - Say conditions are not ideal for a relaxed outdoor gathering (a comfort issue rather than a danger), and name the specific factors that were flagged.
+  - Suggest a shaded or covered spot, or moving the gathering to a more comfortable time of day.
+  - If rain is one of the flagged factors, recommend a backup plan such as a covered venue or another date.
+  - Bring enough drinking water, plus sun protection if heat or UV is one of the flagged factors.
+cite:
+  - wx.max.precipitation_probability
+  - wx.max.apparent_temperature
+  - wx.max.wind_speed_10m
+  - wx.max.uv_index
+  - wx.max.relative_humidity_2m
+rationale: A "good day for a picnic" has no clean threshold; a checklist of mild factors is explainable and still deterministic.

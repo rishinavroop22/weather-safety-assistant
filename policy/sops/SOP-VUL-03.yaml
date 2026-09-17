@@ -1,0 +1,32 @@
+id: SOP-VUL-03
+version: 1
+title: Pets on hot, sun-exposed ground
+category: vulnerable_groups
+severity: moderate
+scope: global
+applies_to:
+  activities: [any_outdoor]
+  groups: []
+fallback: false
+when:
+  all:
+    - any:
+        - fact: intent.groups
+          op: intersects
+          value: [pets]
+        - fact: intent.activities
+          op: intersects
+          value: [dog_walk]
+    - fact: wx.max.temperature_2m
+      op: gte
+      value: 32
+    - fact: wx.max.uv_index
+      op: gte
+      value: 6
+guidance:
+  - It will be hot and sunny during the window, so asphalt and paving can burn paws; state the temperature and UV index.
+  - Suggest the back-of-hand test - if the pavement is too hot to hold a hand on for 7 seconds, it is too hot for paws.
+  - Walk on grass or shaded paths, and move walks to early morning or late evening.
+  - Carry water for the pet, and never leave a pet in a parked vehicle.
+cite: [wx.max.temperature_2m, wx.max.uv_index]
+rationale: Pets are covered whether the user says "pet" or just "walking the dog", so the pet test lives in the condition rather than in applies_to.

@@ -1,0 +1,25 @@
+id: SOP-ACT-02
+version: 1
+title: Elevated heat for strenuous outdoor exercise
+category: active_outdoor
+severity: moderate
+scope: activity
+applies_to:
+  activities: [running, cycling, hiking, outdoor_sports]
+  groups: []
+fallback: false
+when:
+  all:
+    - fact: wx.max.apparent_temperature
+      op: gte
+      value: 32
+    - fact: wx.max.apparent_temperature
+      op: lt
+      value: 40
+guidance:
+  - The feels-like temperature during the window is elevated for exercise; state the peak feels-like temperature.
+  - Recommend lowering the intensity or duration of the session.
+  - Drink water regularly, roughly every 15 to 20 minutes, and choose a shaded route.
+  - Stop and rest somewhere cool if they start to feel unwell.
+cite: [wx.max.apparent_temperature, wx.max.temperature_2m]
+rationale: Warm conditions call for adjustment rather than cancellation; the upper bound hands over to SOP-ACT-01.

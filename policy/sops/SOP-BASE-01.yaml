@@ -1,0 +1,27 @@
+id: SOP-BASE-01
+version: 1
+title: No policy risk thresholds crossed
+category: baseline
+severity: info
+scope: global
+applies_to:
+  activities: [any_known_activity]
+  groups: []
+# Considered only when no other SOP matched and no other SOP was unevaluable.
+fallback: true
+when:
+  all:
+    - fact: intent.concerns
+      op: not_intersects
+      value: [air_quality, pollen, other_unsupported]
+guidance:
+  - State the conditions that were checked for the user's location and time window, with their values.
+  - Say that none of our policy risk thresholds were crossed for this activity in that window.
+  - Do not describe the activity as safe or risk-free; conditions can change, so recommend checking again closer to the time.
+cite:
+  - wx.max.apparent_temperature
+  - wx.max.precipitation_probability
+  - wx.max.wind_gusts_10m
+  - wx.max.uv_index
+  - wx.min.visibility
+rationale: Answering "no guidance" on a calm day for a recognised activity is unhelpful; this states only what was checked. It is suppressed for unrecognised activities and for concerns our data cannot address.

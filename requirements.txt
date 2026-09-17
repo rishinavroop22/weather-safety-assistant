@@ -1,0 +1,6 @@
+# Phase 1 - policy layer
+pydantic>=2.7,<3
+PyYAML>=6.0,<7
+pytest>=8.0,<9
+
+# Later phases will add: langgraph, langchain (LLM provider), httpx, fastapi, uvicorn

@@ -1,0 +1,155 @@
+# Closed vocabulary for the policy layer.
+#
+# SOP files may only reference the tags, weather variables and severities
+# defined here. The intent extractor (Phase 2) will map free text onto these
+# same tags, so adding a tag here makes it available to both.
+
+version: 1
+
+# Higher rank = more severe. Used for deterministic SOP ranking.
+severity_ranks:
+  info: 0
+  low: 1
+  moderate: 2
+  high: 3
+  critical: 4
+
+# Activity tags. "other_outdoor" is required: it marks an outdoor activity we
+# have no specific tag for (so only global SOPs can apply to it).
+# Reserved pseudo-tags for SOP applies_to (not listed here):
+#   any_outdoor        - any outdoor activity, including other_outdoor
+#   any_known_activity - at least one activity other than other_outdoor
+activities:
+  running:
+    description: Running or jogging outdoors.
+    examples: [jog, 10k, morning run, marathon training]
+  cycling:
+    description: Riding a bicycle.
+    examples: [cycle to work, bicycle ride, "bike ride (if unclear, also tag two_wheeler_ride)"]
+  walking:
+    description: Walking or strolling outdoors, not primarily with a dog.
+    examples: [evening stroll, walk around the lake, morning walk]
+  hiking:
+    description: Hiking or trekking on trails or hills.
+    examples: [trek, hit the trails, climb the hill]
+  outdoor_sports:
+    description: Playing an outdoor sport.
+    examples: [cricket, football, tennis, badminton outside]
+  dog_walk:
+    description: Walking a dog.
+    examples: [take the dog out, walk my puppy]
+  two_wheeler_ride:
+    description: Riding a motorised two-wheeler.
+    examples: [scooter, scooty, motorbike, "bike to office (if unclear, also tag cycling)"]
+  driving:
+    description: Driving or being driven in a car on roads.
+    examples: [road trip, drive to Agra, car journey]
+  kayaking_boating:
+    description: Kayaking, canoeing, rowing or small-boat trips.
+    examples: [boat ride, kayak, canoe]
+  open_water_swimming:
+    description: Swimming in the sea, a lake or a river.
+    examples: [swim at the beach, lake swim]
+  beach_outing:
+    description: Spending time at a beach without swimming being the focus.
+    examples: [day at the beach, beach visit]
+  picnic_outing:
+    description: A relaxed outdoor meal or gathering in a park or garden.
+    examples: [picnic, lay out a mat and eat, lunch in the park]
+  outdoor_event:
+    description: Attending or hosting an outdoor event.
+    examples: [outdoor wedding, open-air concert, fair, rooftop party]
+  outdoor_play:
+    description: Children playing outdoors.
+    examples: [playground, take the kids to the park]
+  other_outdoor:
+    description: An outdoor activity with no specific tag above.
+    examples: [scuba diving, paragliding, fishing]
+
+groups:
+  children:
+    description: Children or babies are involved.
+    examples: [my kid, toddler, 6-year-old, baby]
+  elderly:
+    description: Older adults are involved.
+    examples: [my dad who is 78, grandmother, senior citizens]
+  pets:
+    description: Pets are involved.
+    examples: [dog, cat, puppy]
+
+# Concern tags describe what the user is worried about.
+# supported: false = no SOP covers it (used for an honest "no guidance").
+# Cold is deliberately absent: no SOP covers it yet, so it maps to other_unsupported.
+concerns:
+  general_safety:
+    description: General "is it safe / is it a good idea" question.
+    supported: true
+  heat:
+    description: Heat or sun intensity.
+    supported: true
+  rain:
+    description: Rain or flooding.
+    supported: true
+  wind:
+    description: Wind or gusts.
+    supported: true
+  uv:
+    description: UV exposure or sunburn.
+    supported: true
+  visibility:
+    description: Fog or poor visibility.
+    supported: true
+  storm:
+    description: Thunderstorms or lightning.
+    supported: true
+  air_quality:
+    description: Air pollution, AQI or smoke.
+    supported: false
+  pollen:
+    description: Pollen or allergies.
+    supported: false
+  other_unsupported:
+    description: Any other specific concern our weather data cannot address.
+    supported: false
+
+# Open-Meteo hourly variables SOPs may reference as wx.<max|min|sum>.<variable>.
+# wx.codes is the list of weather_code values in the requested window.
+weather_variables:
+  temperature_2m:
+    unit: "°C"
+    description: Air temperature at 2 m.
+  apparent_temperature:
+    unit: "°C"
+    description: Feels-like temperature (heat index / wind chill).
+  relative_humidity_2m:
+    unit: "%"
+    description: Relative humidity at 2 m.
+  precipitation:
+    unit: mm
+    description: Precipitation in the hour (rain + showers + snow).
+  precipitation_probability:
+    unit: "%"
+    description: Probability of precipitation in the hour.
+  weather_code:
+    unit: WMO code
+    description: WMO weather interpretation code (95, 96, 99 = thunderstorm).
+  wind_speed_10m:
+    unit: km/h
+    description: Sustained wind speed at 10 m.
+  wind_gusts_10m:
+    unit: km/h
+    description: Wind gusts at 10 m.
+  uv_index:
+    unit: index
+    description: UV index.
+  visibility:
+    unit: m
+    description: Horizontal visibility.
+
+# Phrases a composed answer must never contain (enforced by the guard in a later phase).
+banned_phrases:
+  - completely safe
+  - perfectly safe
+  - 100% safe
+  - no risk
+  - guaranteed
