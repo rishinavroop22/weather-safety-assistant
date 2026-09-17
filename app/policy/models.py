@@ -48,6 +48,8 @@ PSEUDO_ACTIVITIES = frozenset({ANY_OUTDOOR, ANY_KNOWN_ACTIVITY})
 
 WEATHER_AGGREGATES = ("max", "min", "sum")
 WEATHER_CODES_FACT = "wx.codes"
+WEATHER_CODE_VARIABLE = "weather_code"
+"""The Open-Meteo variable behind ``wx.codes``."""
 INTENT_FACTS = {
     "intent.activities": "activities",
     "intent.groups": "groups",
@@ -89,6 +91,17 @@ class ConcernInfo(TagInfo):
 class WeatherVariable(StrictModel):
     unit: str
     description: str = Field(min_length=1)
+    aggregates: list[str]
+    """Aggregates that are meaningful over a time window (subset of max/min/sum)."""
+
+    @model_validator(mode="after")
+    def _check_aggregates(self) -> "WeatherVariable":
+        unknown = [a for a in self.aggregates if a not in WEATHER_AGGREGATES]
+        if unknown:
+            raise ValueError(f"unknown aggregate(s) {unknown}; allowed: {list(WEATHER_AGGREGATES)}")
+        if len(set(self.aggregates)) != len(self.aggregates):
+            raise ValueError("aggregates must not contain duplicates")
+        return self
 
 
 class Vocabulary(StrictModel):
@@ -127,6 +140,8 @@ def classify_fact(fact: str, vocabulary: Vocabulary) -> FactKind:
       * ``intent.activities|groups|concerns``   -> list of vocabulary tags
     """
     if fact == WEATHER_CODES_FACT:
+        if WEATHER_CODE_VARIABLE not in vocabulary.weather_variables:
+            raise ValueError(f"'{fact}' requires '{WEATHER_CODE_VARIABLE}' in weather_variables in vocabulary.yaml")
         return "code_list"
     if fact in INTENT_FACTS:
         return "tag_list"
@@ -142,6 +157,11 @@ def classify_fact(fact: str, vocabulary: Vocabulary) -> FactKind:
             raise ValueError(
                 f"unknown weather variable '{variable}' in fact '{fact}'; "
                 "add it to weather_variables in vocabulary.yaml"
+            )
+        enabled = vocabulary.weather_variables[variable].aggregates
+        if aggregate not in enabled:
+            raise ValueError(
+                f"aggregate '{aggregate}' is not enabled for '{variable}' in fact '{fact}'; enabled: {enabled}"
             )
         return "number"
     raise ValueError(

@@ -3,9 +3,10 @@
 A LangGraph chat bot that answers outdoor-activity safety questions using live
 Open-Meteo weather, and only gives advice that comes from written SOPs.
 
-> **Status: Phase 1 - policy layer.** SOP files, validation and the
-> deterministic matching engine are done and tested. LangGraph, LLM, weather
-> client, API and frontend come in later phases.
+> **Status: Phase 2 - policy layer + Open-Meteo weather layer.** SOP files,
+> validation, the deterministic matching engine, geocoding, forecast fetching
+> and fact building are done and tested. LangGraph, LLM, API and frontend come
+> in later phases.
 
 ## Setup
 
@@ -32,9 +33,29 @@ Copy `.env.example` to `.env` when later phases need an LLM key. `.env` is git-i
 ## Run
 
 ```bash
-python -m app.policy     # validate policy/ and list the loaded SOPs
-python -m pytest         # run the unit tests
+python -m app.policy               # validate policy/ and list the loaded SOPs
+python -m pytest                   # run the unit tests (no network needed)
+python -m evals.smoke_open_meteo   # optional live Open-Meteo check; saves a fixture
 ```
+
+## Weather layer (`app/weather/`)
+
+```
+city ─► OpenMeteoClient.geocode() ─► Location (name, admin1, country, lat, lon, timezone)
+     ─► OpenMeteoClient.forecast(location, required_weather_variables(policy))
+     ─► RawForecast (untouched JSON + parsed local times)
+     ─► build_facts(forecast, day, part_of_day, vocabulary)
+     ─► WeatherFacts.values  = {"wx.max.uv_index": 7.3, "wx.codes": [1, 95], ...}  → match_sops()
+```
+
+- The request uses `timezone=auto`; "now" is Open-Meteo's `current.time` in local time, never the server clock.
+- Windows: now = current hour +2h; morning 06–11; afternoon 12–16; evening 17–20; night 21–23;
+  whole day = now–23 (today) or 06–21 (tomorrow). A window that is fully over raises `WindowPassedError`.
+- Aggregates per variable come from `aggregates:` in `vocabulary.yaml`. A null hour inside the window
+  makes that variable's facts `None`, which the policy engine treats as UNKNOWN. Nothing is filled with zero.
+- Failures raise `LocationError` / `WeatherError` with `kind`
+  (`not_found | timeout | http_error | network_error | invalid_response`), a user-safe `message` and a log-only `detail`.
+- Anything with `geocode()` and `forecast()` is a `WeatherProvider`; `FixtureWeatherProvider` replays saved responses.
 
 ## Policy layout
 

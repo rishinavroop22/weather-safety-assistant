@@ -112,39 +112,51 @@ concerns:
     description: Any other specific concern our weather data cannot address.
     supported: false
 
-# Open-Meteo hourly variables SOPs may reference as wx.<max|min|sum>.<variable>.
-# wx.codes is the list of weather_code values in the requested window.
+# Open-Meteo hourly variables SOPs may reference as wx.<aggregate>.<variable>.
+# `aggregates` lists the aggregates that are meaningful for the variable over a
+# time window; the weather layer computes exactly these, and SOPs may use only these.
+# weather_code has no numeric aggregates: it is exposed as wx.codes (the set of codes).
 weather_variables:
   temperature_2m:
     unit: "°C"
     description: Air temperature at 2 m.
+    aggregates: [max, min]
   apparent_temperature:
     unit: "°C"
     description: Feels-like temperature (heat index / wind chill).
+    aggregates: [max, min]
   relative_humidity_2m:
     unit: "%"
     description: Relative humidity at 2 m.
+    aggregates: [max, min]
   precipitation:
     unit: mm
     description: Precipitation in the hour (rain + showers + snow).
+    aggregates: [max, sum]
   precipitation_probability:
     unit: "%"
     description: Probability of precipitation in the hour.
+    aggregates: [max]
   weather_code:
     unit: WMO code
     description: WMO weather interpretation code (95, 96, 99 = thunderstorm).
+    aggregates: []
   wind_speed_10m:
     unit: km/h
     description: Sustained wind speed at 10 m.
+    aggregates: [max]
   wind_gusts_10m:
     unit: km/h
     description: Wind gusts at 10 m.
+    aggregates: [max]
   uv_index:
     unit: index
     description: UV index.
+    aggregates: [max]
   visibility:
     unit: m
     description: Horizontal visibility.
+    aggregates: [min]
 
 # Phrases a composed answer must never contain (enforced by the guard in a later phase).
 banned_phrases:

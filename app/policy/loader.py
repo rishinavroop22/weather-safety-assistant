@@ -23,7 +23,7 @@ from typing import Any
 import yaml
 from pydantic import ValidationError
 
-from app.policy.models import SOP, WEATHER_CODES_FACT, Vocabulary, iter_leaves
+from app.policy.models import SOP, WEATHER_CODE_VARIABLE, WEATHER_CODES_FACT, Vocabulary, iter_leaves
 
 logger = logging.getLogger(__name__)
 
@@ -137,7 +137,7 @@ def required_weather_variables(policy: PolicySet) -> list[str]:
     variables: set[str] = set()
     for fact in facts:
         if fact == WEATHER_CODES_FACT:
-            variables.add("weather_code")
+            variables.add(WEATHER_CODE_VARIABLE)
         elif fact.startswith("wx."):
             variables.add(fact.split(".")[2])
     return sorted(variables)

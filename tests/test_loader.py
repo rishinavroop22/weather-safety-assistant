@@ -70,6 +70,7 @@ INVALID_SOPS = [
     pytest.param(_when({**LEAF, "op": "greater_than"}), "when.all.0.op: Input should be", id="unknown-operator"),
     pytest.param(_when({**LEAF, "fact": "wx.max.snow_depth"}), "unknown weather variable 'snow_depth'", id="unknown-weather-variable"),
     pytest.param(_when({**LEAF, "fact": "wx.avg.uv_index"}), "unknown aggregate 'avg'", id="unknown-aggregate"),
+    pytest.param(_when({**LEAF, "fact": "wx.sum.uv_index"}), "aggregate 'sum' is not enabled for 'uv_index'", id="aggregate-not-enabled"),
     pytest.param(_when({**LEAF, "fact": "weather.uv"}), "unknown fact 'weather.uv'", id="unknown-fact"),
     pytest.param(_when({**LEAF, "value": [7, 8]}), "operator 'gte' requires a number", id="numeric-op-with-list"),
     pytest.param(_when({**LEAF, "value": True}), "operator 'gte' requires a number", id="numeric-op-with-bool"),
