@@ -7,6 +7,11 @@ It is made of a deterministic policy engine, an Open-Meteo weather layer, a 9-no
 LLM intent extraction and answer wording (any OpenAI-compatible API), a FastAPI backend and a
 React chat frontend. Evaluation results are in [`evals/results.md`](evals/results.md).
 
+## Live Demo
+
+- GitHub: https://github.com/rishinavroop22/weather-safety-assistant
+- Live: [https://weather-safety-assistant.onrender.com/](https://weather-safety-assistant.onrender.com/)
+
 ## Architecture
 
 ```
@@ -68,7 +73,7 @@ names (never the values).
 
 ### Frontend
 
-Requires Node.js 20+.
+Requires Node.js ^20.19.0 or >=22.12.0.
 
 ```bash
 cd frontend
